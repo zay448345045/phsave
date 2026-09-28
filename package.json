@@ -1,0 +1,38 @@
+{
+  "name": "phigrsaves",
+  "version": "1.0.0",
+  "description": "Phigros 云存档修改工具箱：抓包、逆向新版格式、无损校验、批量改档",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "bin": "./dist/cli.js",
+  "keywords": [
+    "phigros",
+    "save",
+    "save-editor",
+    "cloud-save"
+  ],
+  "author": "Bad0RANG3",
+  "license": "Anti-996",
+  "private": false,
+  "scripts": {
+    "build": "tsup",
+    "get": "ts-node tools/edit.ts get",
+    "apply": "ts-node tools/edit.ts apply",
+    "backup": "ts-node tools/edit.ts backup",
+    "roundtrip": "ts-node tools/roundtrip.ts"
+  },
+  "dependencies": {
+    "adm-zip": "^0.5.12",
+    "axios": "^1.7.7",
+    "commander": "^12.0.0"
+  },
+  "devDependencies": {
+    "@types/adm-zip": "^0.5.2",
+    "@types/commander": "^2.12.2",
+    "@types/node": "^22.7.7",
+    "ts-node": "^10.9.1",
+    "tsup": "^8.2.4",
+    "typescript": "^5.4.5"
+  }
+}

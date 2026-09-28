@@ -1,0 +1,118 @@
+import { createHash } from "crypto"
+import { FieldEntry, PhigrosBinaryFile } from "../phi-binary"
+
+export class PlayerGameRecord {
+    static readonly VERSION = 1
+    private binary: PhigrosBinaryFile
+    
+    private _records: FieldEntry
+
+    /**
+     * 
+     * @param buff Decrypted buffer
+     */
+    constructor(buff: Buffer) {
+        this.binary = new PhigrosBinaryFile([
+            {
+                type: 'arr',
+                len: 'varshort',
+                field: 'records',
+                definition: {
+                    type: 'object',
+                    definition: [
+                        { // Key
+                            type: 'string',
+                            field: 'songName'
+                        },
+                        {
+                            type: 'object',
+                            field: 'records',
+                            length: 'byte',
+                            definition: [
+                                {
+                                    type: 'byte',
+                                    field: 'levelExsistanceFlag'
+                                },
+                                {
+                                    type: 'byte',
+                                    field: 'fcFlag'
+                                }, 
+                                {
+                                    type: 'arr',
+                                    field: 'levelRecords',
+                                    len: {
+                                        // 难度位掩码最多到 bit4，共 5 个槽位
+                                        expectedLen: 5,
+                                        skip: (_f, ctx) => {
+                                            return (ctx.prev.ctx.levelExsistanceFlag & (1 << ctx.curr)) === 0
+                                        }
+                                    },
+                                    definition: {
+                                        type: 'object',
+                                        base: {
+                                            rks(diff: number) {
+                                                if (this.accuracy < 70) {
+                                                    return 0
+                                                }     
+        
+                                                return diff * (((this.accuracy - 55) / 45) ** 2)
+                                            }
+                                        },
+                                        definition: [
+                                            {
+                                                type: 'int',
+                                                field: 'score'
+                                            },
+                                            {
+                                                type: 'float',
+                                                field: 'accuracy'
+                                            }
+                                        ]
+                                    }
+                                }
+                            ]
+                        }
+                    ]
+                }
+            }
+        ], buff)
+
+        if (this.binary.fileVersion !== PlayerGameRecord.VERSION) {
+            throw new Error(`Unsupported version of gameRecord! Expected: ${PlayerGameRecord.VERSION}, got: ${this.binary.fileVersion}`)
+        }
+
+        this._records = this.binary.getEntry('records')!
+    }
+
+    get records(): SongRecord[] {
+        return this._records.value
+    }
+    
+    set records(records: SongRecord[]) {
+        this._records.value = records
+    }
+
+    save(): Buffer {
+        this.binary.clearBuffer()
+        this.binary.setEntry(this._records)
+
+        return this.binary.saveBuffer()
+    }
+}
+
+export type LevelRecord = {
+    score: number,
+    accuracy: number,
+    rks: (diff: number) => number
+}
+
+export type SongRecordBody = {
+    levelExsistanceFlag: number,
+    fcFlag: number,
+    levelRecords: LevelRecord[]
+}
+
+export type SongRecord = {
+    songName: string,
+    records: SongRecordBody
+}

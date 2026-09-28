@@ -1,0 +1,9 @@
+node_modules
+.vscode
+*.save
+yarn-error.log
+dist
+.env
+backups/
+__pycache__/
+*.pyc
