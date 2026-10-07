@@ -65,10 +65,13 @@ export class PlayerGameKey {
             }
         ]
         if (version >= 3) {
-            // v3 在尾部新增了 2 个字节，按原样保留以保证无损往返
+            // v3 尾部新增的 2 个字节。
+            // 反编译 GameKeySaveModule 后确认它们就是：
+            //   sideStory4BeginReadKey  —— Side Story 4「无相乡」是否已读过开场
+            //   oldScoreClearedV390     —— 3.9.0 旧谱成绩是否已清零标记
             definition.push(
-                { type: 'byte', field: 'unknownV3A' },
-                { type: 'byte', field: 'unknownV3B' }
+                { type: 'byte', field: 'sideStory4BeginReadKey' },
+                { type: 'byte', field: 'oldScoreClearedV390' }
             )
         }
         this.binary = new PhigrosBinaryFile(definition, buff)
@@ -76,6 +79,26 @@ export class PlayerGameKey {
         this._keys = this.binary.getEntry('keys')!
         this._lanotaReadKeys = this.binary.getEntry('lanotaReadKeys')!
         this._camelliaReadKey = this.binary.getEntry('camelliaReadKey')!
+    }
+
+    /** Side Story 4「无相乡」开场是否已读（v3 新增字节 1） */
+    get sideStory4BeginReadKey(): number {
+        return this.binary.getEntry('sideStory4BeginReadKey')?.value ?? 0
+    }
+
+    set sideStory4BeginReadKey(v: number) {
+        const e = this.binary.getEntry('sideStory4BeginReadKey')
+        if (e) e.value = v
+    }
+
+    /** 3.9.0 旧谱成绩清零标记（v3 新增字节 2） */
+    get oldScoreClearedV390(): number {
+        return this.binary.getEntry('oldScoreClearedV390')?.value ?? 0
+    }
+
+    set oldScoreClearedV390(v: number) {
+        const e = this.binary.getEntry('oldScoreClearedV390')
+        if (e) e.value = v
     }
 
     get keys(): GameKeyEntry[] {

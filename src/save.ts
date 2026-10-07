@@ -12,7 +12,7 @@ const supportedVersion: { [key: string]: number } = {
     'settings': 1,
     'gameRecord': 1,
     'gameKey': 3,
-    'gameProgress': 5
+    'gameProgress': 6
 }
 
 export class PhigrosSave {

@@ -1,7 +1,7 @@
 import { FieldEntry, PhigrosBinaryFile, PhigrosBinaryStructure } from "../phi-binary"
 
 export class PlayerGameProgress {
-    static readonly VERSION = 5
+    static readonly VERSION = 6
     private binary: PhigrosBinaryFile
 
     _isFirstRun: FieldEntry
@@ -40,8 +40,8 @@ export class PlayerGameProgress {
      */
     constructor(buff: Buffer) {
         const version = buff.at(0)!
-        if (version < 3 || version > 5) {
-            throw new Error(`Unsupported version of gameProgress! Expected: 3, 4 or 5, got: ${version}`)
+        if (version < 3 || version > 6) {
+            throw new Error(`Unsupported version of gameProgress! Expected: 3, 4, 5 or 6, got: ${version}`)
         }
 
         const definition: PhigrosBinaryStructure[] = [
@@ -119,16 +119,32 @@ export class PlayerGameProgress {
             },
         ]
         if (version >= 4) {
-            // v4 在尾部新增了 1 个字节，按原样保留以保证无损往返
-            definition.push({ type: 'byte', field: 'unknownV4' })
+            // v4 在 chapter8SongUnlocked 后新增 1 字节。
+            // 反编译 GameProgressSaveModule 后确认是 flagOfSongRecordKeyTakumi
+            // （Takumi 包AT 解锁位掩码）。
+            definition.push({ type: 'byte', field: 'flagOfSongRecordKeyTakumi' })
         }
         if (version >= 5) {
-            // v5 又在尾部新增了 3 个字节和一个字符串
+            // v5 新增 3 字节 + 1 字符串。反编译确认它们对应第九章“秘密挑战”：
+            //   chapter9SecretChallengeLifeTier          —— 生命档位
+            //   chapter9SongUnlocked                     —— 第九章歌曲解锁位掩码（6 位）
+            //   chapter9SecretChallengeSelectedLifeTier  —— 已选生命档位
+            //   chapter9SecretPassword                   —— 第九章密码提示文本
             definition.push(
-                { type: 'byte', field: 'unknownV5A' },
-                { type: 'byte', field: 'unknownV5B' },
-                { type: 'byte', field: 'unknownV5C' },
-                { type: 'string', field: 'unknownV5String' }
+                { type: 'byte', field: 'chapter9SecretChallengeLifeTier' },
+                { type: 'byte', field: 'chapter9SongUnlocked' },
+                { type: 'byte', field: 'chapter9SecretChallengeSelectedLifeTier' },
+                { type: 'string', field: 'chapter9SecretPassword' }
+            )
+        }
+        if (version >= 6) {
+            // v6（Phigros 4.0.1+）再新增 3 字节，对应第九章 Phase2 状态：
+            //   chapter9Phase2SongUnlocked 位掩码 / chapter9Phase2Step / 一组 bool
+            // 语义尚未完全确定，按原样保留即可无损往返。
+            definition.push(
+                { type: 'byte', field: 'chapter9Phase2A' },
+                { type: 'byte', field: 'chapter9Phase2B' },
+                { type: 'byte', field: 'chapter9Phase2C' }
             )
         }
         this.binary = new PhigrosBinaryFile(definition, buff)
@@ -373,4 +389,25 @@ export enum Chapter8Song {
     Luminescence,
     DistortedFate,
     Destruction321
+}
+
+/**
+ * 课题模式（Challenge Mode）排名的编码。
+ *
+ * 存档里 `gameProgress.challengeModeRank` 一个 short 同时存了名次与颜色：
+ *
+ *     challengeModeRank = rankLevel * 100 + rankNum
+ *
+ * - `rankLevel`：1..5，由三首总分决定；**5 就是「彩色」**（总分 >= 3,000,000）。
+ * - `rankNum`  ：三首谱面定数之和（向下取整）。
+ *
+ * 反编译依据：`ChallengeModeOverControl.Back()` 里
+ * `madd w1, w23(rankLevel), 100, w20(rankNum)`。
+ */
+export function decodeChallengeRank(rank: number) {
+    return { rankLevel: Math.floor(rank / 100), rankNum: rank % 100 }
+}
+
+export function encodeChallengeRank(rankLevel: number, rankNum: number) {
+    return rankLevel * 100 + rankNum
 }
